@@ -1,0 +1,11 @@
+{
+  "repo": "우리팀/프로젝트",
+  "team": [
+    { "agent": "yejin-claude", "owner": "예진", "github": "NYejin", "role": "PM" },
+    { "agent": "minsu-claude", "owner": "민수", "github": "minsu-gh", "role": "백엔드" },
+    { "agent": "jiho-claude", "owner": "지호", "github": "jiho-gh", "role": "프론트엔드" },
+    { "agent": "sora-claude", "owner": "소라", "github": "sora-gh", "role": "디자인" },
+    { "agent": "hyun-claude", "owner": "현", "github": "hyun-gh", "role": "인프라" },
+    { "agent": "dana-claude", "owner": "다나", "github": "dana-gh", "role": "QA" }
+  ]
+}

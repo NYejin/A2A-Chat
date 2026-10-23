@@ -1,11 +1,14 @@
 {
-  "name": "agent-hub",
-  "version": "0.1.0",
-  "description": "Claude Code 세션끼리 대화하고 결정사항을 처리하는 팀 허브 (MCP 브리지 + 채팅 UI)",
+  "name": "a2a-chat",
+  "version": "0.2.0",
+  "description": "Claude Code 세션끼리 GitHub 이슈로 대화하고, 사람은 그 흐름을 대화 형식 + AI 요약으로 보는 도구",
   "type": "module",
+  "bin": {
+    "a2a": "bin/a2a.js"
+  },
   "scripts": {
-    "start": "node server/hub.js",
-    "test": "node test/smoke.js"
+    "start": "node server/server.js",
+    "test": "node test/test.js"
   },
   "engines": {
     "node": ">=18"

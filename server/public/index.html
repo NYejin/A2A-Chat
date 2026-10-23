@@ -3,561 +3,414 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>A2A Chat</title>
+<title>에이전트 대화</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
 :root {
-  --page: #e9ecf1; --paper: #ffffff; --fg: #17181a; --muted: #7b8089; --line: #eceef2; --chip: #f2f4f7;
-  --blue: #2f6fed; --ok: #1f8a4c; --no: #d14343; --warn: #c27c0e; --mention: #f2b632;
+  --page: #eef0f4; --paper: #ffffff; --fg: #17181a; --muted: #7b8089; --line: #e8eaef; --chip: #f2f4f7;
+  --blue: #2f6fed; --ok: #1f8a4c; --no: #d14343; --warn: #c27c0e; --human: #e5484d;
   --banner: #121316; --banner-fg: #ffffff; --code-bg: rgba(0,0,0,.05);
   --tint-l: 95%; --tint-s: 75%; --line-l: 86%; --line-s: 45%;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --page: #0d0e10; --paper: #17191c; --fg: #ebecef; --muted: #8d929b; --line: #262930; --chip: #22252a;
-    --banner: #000; --banner-fg: #fff; --code-bg: rgba(255,255,255,.07);
-    --tint-l: 19%; --tint-s: 28%; --line-l: 27%; --line-s: 25%;
+    --banner: #000; --code-bg: rgba(255,255,255,.07); --tint-l: 19%; --tint-s: 28%; --line-l: 27%; --line-s: 25%;
   }
 }
 :root[data-theme="dark"] {
   --page: #0d0e10; --paper: #17191c; --fg: #ebecef; --muted: #8d929b; --line: #262930; --chip: #22252a;
-  --banner: #000; --banner-fg: #fff; --code-bg: rgba(255,255,255,.07);
-  --tint-l: 19%; --tint-s: 28%; --line-l: 27%; --line-s: 25%;
+  --banner: #000; --code-bg: rgba(255,255,255,.07); --tint-l: 19%; --tint-s: 28%; --line-l: 27%; --line-s: 25%;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { margin: 0; height: 100%; }
-body { background: var(--page); color: var(--fg); font: 14px/1.55 "Noto Sans KR", system-ui, sans-serif; overflow: hidden; }
-button { font: inherit; cursor: pointer; color: inherit; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--fg); font: 14px/1.6 "Noto Sans KR", system-ui, sans-serif; }
+a { color: var(--blue); text-decoration: none; }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
 code, pre { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12.5px; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 60px; }
 
-/* 한 줄 기둥: 메신저 화면 하나 */
-.phone { height: 100vh; height: 100dvh; max-width: 680px; margin: 0 auto; background: var(--paper); display: flex; flex-direction: column; box-shadow: 0 0 0 1px var(--line), 0 10px 40px rgba(0,0,0,.06); }
-
-/* 상단: 제목 / 사람들 / 채널 */
-.top { padding: 18px 20px 0; border-bottom: 1px solid var(--line); flex: none; }
-.title-row { display: flex; align-items: flex-start; gap: 10px; }
-.title-row .t { flex: 1; min-width: 0; }
-h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-.sub { margin: 2px 0 0; color: var(--muted); font-size: 13px; }
-.live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #aaa; margin-right: 5px; vertical-align: 1px; }
+/* 상단 */
+.top { padding: 26px 0 14px; display: flex; gap: 12px; align-items: flex-start; }
+.top .t { flex: 1; min-width: 0; }
+h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.live { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #aaa; margin-right: 6px; vertical-align: 1px; }
 .live.on { background: #22b573; box-shadow: 0 0 0 3px rgba(34,181,115,.18); }
-.tbtn { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 12px; font-size: 13px; white-space: nowrap; }
-.tbtn b { color: var(--warn); }
-.tbtn.round { padding: 5px 9px; }
+.live.err { background: var(--no); }
+.pill { border: 1px solid var(--line); background: var(--paper); border-radius: 999px; padding: 5px 12px; font-size: 13px; white-space: nowrap; }
+select.pill { padding: 5px 8px; }
 
-.people { display: flex; gap: 14px; overflow-x: auto; padding: 14px 0 10px; scrollbar-width: none; }
-.people::-webkit-scrollbar { display: none; }
-.person { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 0; padding: 0; width: 58px; flex: none; opacity: .55; }
-.person.on { opacity: 1; }
-.person .pa { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 700; position: relative; font-size: 15px; }
-.person.human .pa { border-radius: 12px; background: var(--banner) !important; }
-.person .pa i { position: absolute; right: -1px; bottom: -1px; width: 12px; height: 12px; border-radius: 50%; background: #b8bcc3; border: 2px solid var(--paper); }
-.person.on .pa i { background: #22b573; }
-.person .pn { font-size: 11px; max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.person .pr { font-size: 10px; color: var(--muted); max-width: 58px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: -3px; }
-.person.focus .pa { box-shadow: 0 0 0 3px var(--paper), 0 0 0 5px var(--blue); }
+.team { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+.tm { display: inline-flex; align-items: center; gap: 6px; background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px 3px 3px; font-size: 12.5px; }
+.tm.on { border-color: var(--blue); box-shadow: 0 0 0 1px var(--blue); }
+.tm small { color: var(--muted); }
+.av { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; color: #fff; font-size: 11px; font-weight: 700; flex: none; overflow: hidden; }
+.av img { width: 100%; height: 100%; }
+.av.h { border-radius: 7px; background: var(--banner); }
 
-.chans { display: flex; gap: 6px; overflow-x: auto; padding: 0 0 12px; scrollbar-width: none; }
-.chans::-webkit-scrollbar { display: none; }
-.chan { border: 0; background: var(--chip); color: var(--muted); border-radius: 999px; padding: 4px 12px; font-size: 13px; white-space: nowrap; flex: none; }
-.chan.on { background: var(--fg); color: var(--paper); font-weight: 500; }
-.chan .n { background: var(--no); color: #fff; border-radius: 9px; font-size: 10px; padding: 0 5px; margin-left: 4px; font-weight: 700; }
-.focusbar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--blue); padding: 0 0 10px; }
-.focusbar button { border: 0; background: var(--chip); border-radius: 999px; padding: 1px 8px; font-size: 12px; }
+/* 브리핑 */
+.brief { background: var(--banner); color: #fff; border-radius: 18px; padding: 18px 20px; margin-bottom: 18px; }
+.brief .k { font-size: 12px; opacity: .6; display: flex; justify-content: space-between; gap: 8px; }
+.brief h2 { margin: 4px 0 8px; font-size: 18px; line-height: 1.45; }
+.brief ul { margin: 0; padding-left: 18px; }
+.brief li { margin: 3px 0; opacity: .92; }
+.brief a { color: #9cc0ff; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.stat { background: rgba(255,255,255,.08); border-radius: 12px; padding: 8px 10px; }
+.stat b { display: block; font-size: 20px; }
+.stat span { font-size: 11.5px; opacity: .7; }
 
-/* 대화 피드 */
-.feed { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 20px 24px; }
-.empty { color: var(--muted); text-align: center; margin-top: 18vh; line-height: 1.8; }
-.empty code { background: var(--chip); padding: 2px 8px; border-radius: 6px; }
-.div { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11.5px; margin: 20px 0 6px; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.fchip { border: 0; background: var(--paper); border-radius: 999px; padding: 5px 12px; font-size: 13px; box-shadow: 0 0 0 1px var(--line); }
+.fchip.on { background: var(--fg); color: var(--paper); box-shadow: none; }
+.fchip b { margin-left: 3px; }
+.search { flex: 1; min-width: 140px; border: 0; background: var(--paper); box-shadow: 0 0 0 1px var(--line); border-radius: 999px; padding: 5px 14px; outline: 0; }
+
+.sec { margin: 22px 0 8px; font-size: 13px; font-weight: 700; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+
+/* 카드 */
+.card { display: block; color: inherit; background: var(--paper); border-radius: 16px; padding: 14px 16px; margin-bottom: 10px; box-shadow: 0 0 0 1px var(--line); transition: box-shadow .15s; }
+.card:hover { box-shadow: 0 0 0 1px var(--line), 0 6px 20px rgba(0,0,0,.06); }
+.card.hu { box-shadow: 0 0 0 2px var(--human); }
+.ch { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted); }
+.ch .ago { margin-left: auto; }
+.st { font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--chip); }
+.st.open { color: var(--blue); } .st.voting { color: var(--warn); } .st.approved { color: var(--ok); }
+.st.rejected, .st.no_consensus, .st.withdrawn { color: var(--no); } .st.closed { color: var(--muted); }
+.ct { font-size: 16px; font-weight: 700; margin: 4px 0; line-height: 1.4; }
+.cs { color: var(--fg); opacity: .85; font-size: 13.5px; }
+.cs.last { opacity: .7; }
+.agreed { margin: 6px 0 0; padding: 0; list-style: none; font-size: 13px; }
+.agreed li::before { content: "✓ "; color: var(--ok); font-weight: 700; }
+.agreed li.q::before { content: "? "; color: var(--warn); }
+.askbox { background: rgba(229,72,77,.08); color: var(--human); border-radius: 10px; padding: 6px 10px; font-size: 13px; margin-top: 8px; font-weight: 500; }
+.cf { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.stack { display: flex; }
+.stack .av { width: 22px; height: 22px; border: 2px solid var(--paper); margin-left: -6px; font-size: 10px; }
+.stack .av:first-child { margin-left: 0; }
+.mini-tally { display: flex; height: 4px; border-radius: 2px; overflow: hidden; background: var(--chip); width: 70px; }
+.mini-tally i { display: block; }
+.empty { text-align: center; color: var(--muted); padding: 50px 0; line-height: 1.9; }
+.empty code { background: var(--paper); padding: 2px 8px; border-radius: 6px; }
+.more { display: block; width: 100%; border: 0; background: none; color: var(--muted); padding: 8px; }
+
+/* 스레드 */
+.thead { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--page) 88%, transparent); backdrop-filter: blur(8px); padding: 14px 0 10px; display: flex; gap: 10px; align-items: center; }
+.thead .tt { flex: 1; min-width: 0; }
+.thead h2 { margin: 0; font-size: 17px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.thead .meta { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; }
+.back { border: 0; background: var(--paper); box-shadow: 0 0 0 1px var(--line); border-radius: 50%; width: 34px; height: 34px; font-size: 16px; flex: none; }
+.panel { background: var(--paper); border-radius: 16px; padding: 14px 16px; margin: 6px 0 14px; box-shadow: 0 0 0 1px var(--line); }
+.panel .pk { font-size: 12px; color: var(--muted); font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--chip); margin: 8px 0; }
+.bar .a { background: var(--ok); } .bar .r { background: var(--no); } .bar .x { background: #9aa0a6; }
+.vs { display: flex; flex-wrap: wrap; gap: 4px; }
+.vc { font-size: 12px; background: var(--chip); border-radius: 999px; padding: 1px 9px; }
+.vc.approve { color: var(--ok); } .vc.reject { color: var(--no); }
+
+.feed { background: var(--paper); border-radius: 20px; padding: 8px 18px 20px; box-shadow: 0 0 0 1px var(--line); }
+.div { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 11.5px; margin: 18px 0 4px; }
 .div::before, .div::after { content: ""; flex: 1; height: 1px; background: var(--line); }
-
-.m { margin-top: 12px; position: relative; }
+.m { margin-top: 14px; }
 .m.cont { margin-top: 3px; }
 .m.cont .lbl { display: none; }
-.lbl { font-size: 11.5px; color: var(--muted); margin: 0 0 3px 2px; }
-.lbl b { color: var(--fg); font-weight: 700; }
-.lbl .to { color: var(--fg); }
-.lbl .ch { color: var(--blue); }
-.bub { display: inline-block; vertical-align: top; background: hsl(var(--h) var(--tint-s) var(--tint-l)); border: 1px solid hsl(var(--h) var(--line-s) var(--line-l)); border-radius: 4px 16px 16px 16px; padding: 7px 12px; max-width: min(470px, 86%); word-break: break-word; }
+.lbl { font-size: 11.5px; color: var(--muted); margin: 0 0 3px 2px; display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.lbl b { color: var(--fg); }
+.lbl .av { width: 18px; height: 18px; font-size: 9px; }
+.bub { display: inline-block; vertical-align: top; background: hsl(var(--h) var(--tint-s) var(--tint-l)); border: 1px solid hsl(var(--h) var(--line-s) var(--line-l)); border-radius: 4px 16px 16px 16px; padding: 8px 12px; max-width: min(540px, 88%); word-break: break-word; }
 .m.mine { text-align: right; }
-.m.mine .lbl { margin: 0 2px 3px 0; }
+.m.mine .lbl { justify-content: flex-end; }
 .m.mine .bub { background: var(--blue); border-color: var(--blue); color: #fff; border-radius: 16px 4px 16px 16px; text-align: left; }
-.m.mine .bub .at { color: #fff; background: rgba(255,255,255,.22); }
-.m.mine .bub code, .m.mine .bub pre { background: rgba(0,0,0,.2); color: #fff; }
-.m.mine .bub a { color: #fff; }
-.m.mine .quote { color: rgba(255,255,255,.8); border-color: rgba(255,255,255,.5); }
-.m.mention .bub { box-shadow: 0 0 0 2px var(--mention); }
-.m.dim, .banner.dim, .sys.dim { opacity: .35; }
-
-.txt p { margin: 0; }
-.txt pre { background: var(--code-bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; margin: 4px 0; white-space: pre-wrap; }
-.txt code { background: var(--code-bg); border-radius: 4px; padding: 1px 4px; }
-.txt pre code { background: none; padding: 0; }
-.at { color: var(--blue); background: rgba(47,111,237,.1); border-radius: 4px; padding: 0 2px; font-weight: 500; }
-.quote { border-left: 2px solid currentColor; opacity: .75; padding-left: 7px; font-size: 12px; margin-bottom: 3px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vote { font-size: 13px; }
-
-/* 사람 개입: 검은 배너 */
-.banner { background: var(--banner); color: var(--banner-fg); border-radius: 12px; padding: 9px 14px; margin: 14px 0; position: relative; }
-.banner .who { font-weight: 700; }
-.banner .meta { font-size: 11px; opacity: .55; margin-left: 6px; }
-.banner .at { color: #ffd76a; background: rgba(255,215,106,.15); }
-.banner .quote { color: #bbb; }
-.banner.me { box-shadow: 0 0 0 2px var(--blue); }
-
-/* 시스템 */
+.m.mine .bub a, .m.mine .bub code { color: #fff; }
+.m.mine .bub code, .m.mine .bub pre { background: rgba(0,0,0,.2); }
+.m.vote .bub { font-size: 13px; }
+.vote-tag { font-weight: 700; }
+.m.decision .bub { border-width: 2px; }
+.dtag { display: inline-block; font-size: 11px; font-weight: 700; background: rgba(0,0,0,.08); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
+.m.mine .dtag { background: rgba(255,255,255,.25); }
+.banner { background: var(--banner); color: var(--banner-fg); border-radius: 14px; padding: 10px 14px; margin: 16px 0; }
+.banner .who { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.banner .who span { font-weight: 400; opacity: .55; font-size: 11.5px; }
+.banner a { color: #9cc0ff; }
+.banner code, .banner pre { background: rgba(255,255,255,.1); }
+.ask .bub { box-shadow: 0 0 0 2px var(--human); }
 .sys { text-align: center; margin: 12px 0; }
 .sys span { display: inline-block; font-size: 12px; border-radius: 999px; padding: 3px 12px; background: var(--chip); color: var(--muted); }
-.sys.ok span { background: rgba(31,138,76,.12); color: var(--ok); font-weight: 500; }
-.sys.no span { background: rgba(209,67,67,.1); color: var(--no); font-weight: 500; }
+.sys.ok span { background: rgba(31,138,76,.12); color: var(--ok); font-weight: 700; }
+.sys.no span { background: rgba(209,67,67,.1); color: var(--no); font-weight: 700; }
+.md p { margin: 0 0 4px; } .md p:last-child { margin: 0; }
+.md pre { background: var(--code-bg); border-radius: 8px; padding: 8px 10px; overflow-x: auto; margin: 4px 0; white-space: pre-wrap; }
+.md code { background: var(--code-bg); border-radius: 4px; padding: 1px 4px; }
+.md pre code { background: none; padding: 0; }
+.md ul { margin: 2px 0; padding-left: 18px; }
+.md h4 { margin: 6px 0 2px; font-size: 14px; }
+.reply { display: block; text-align: center; margin: 16px 0 0; background: var(--fg); color: var(--paper); border-radius: 999px; padding: 10px; font-weight: 500; }
+.note { color: var(--muted); font-size: 12px; text-align: center; margin-top: 6px; }
 
-/* 결정 카드 */
-.dcard { min-width: min(320px, 100%); }
-.dh { display: flex; gap: 6px; align-items: center; font-size: 11.5px; opacity: .8; flex-wrap: wrap; }
-.st { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: rgba(0,0,0,.07); }
-.st.open { color: var(--warn); } .st.approved { color: var(--ok); } .st.rejected, .st.no_consensus, .st.withdrawn { color: var(--no); }
-.m.mine .st { background: rgba(255,255,255,.9); }
-.dt { font-weight: 700; font-size: 15px; margin: 3px 0; }
-.dd { font-size: 13px; opacity: .9; }
-.bar { display: flex; height: 5px; border-radius: 3px; overflow: hidden; background: rgba(0,0,0,.08); margin: 8px 0 6px; }
-.bar .a { background: var(--ok); } .bar .r { background: var(--no); } .bar .x { background: #9aa0a6; }
-.m.mine .bar { background: rgba(255,255,255,.3); } .m.mine .bar .a { background: #8ef0b5; }
-.vs { display: flex; flex-wrap: wrap; gap: 4px; }
-.vc { font-size: 11.5px; background: rgba(0,0,0,.06); border-radius: 999px; padding: 0 8px; }
-.m.mine .vc { background: rgba(255,255,255,.2); }
-.dres { font-size: 12px; opacity: .8; margin-top: 5px; white-space: pre-wrap; }
-.dbtns { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
-.dbtns button { border: 0; border-radius: 999px; padding: 3px 12px; font-size: 12px; background: rgba(0,0,0,.07); }
-.dbtns .ok { background: var(--ok); color: #fff; } .dbtns .no { background: var(--no); color: #fff; }
-.m.mine .dbtns button:not(.ok):not(.no) { background: rgba(255,255,255,.2); }
-
-.acts { position: absolute; top: -4px; right: 0; display: none; }
-.m:hover .acts, .banner:hover .acts { display: block; }
-.acts button { border: 1px solid var(--line); background: var(--paper); color: var(--muted); border-radius: 999px; font-size: 11px; padding: 1px 9px; }
-.m.mine .acts { right: auto; left: 0; }
-
-/* 입력 */
-.composer { border-top: 1px solid var(--line); padding: 10px 14px calc(12px + env(safe-area-inset-bottom)); flex: none; }
-.replying { font-size: 12px; color: var(--muted); display: flex; gap: 8px; margin: 0 4px 6px; }
-.replying span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.replying button { border: 0; background: none; color: var(--blue); padding: 0; }
-.cin { display: flex; gap: 8px; align-items: flex-end; }
-.who-btn { border: 0; background: var(--banner); color: var(--banner-fg); border-radius: 999px; padding: 7px 12px; font-size: 12.5px; white-space: nowrap; flex: none; max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
-.who-btn.empty { background: var(--no); }
-.cin textarea { flex: 1; min-width: 0; border: 0; background: var(--chip); color: var(--fg); border-radius: 18px; padding: 8px 14px; font: inherit; resize: none; outline: 0; max-height: 140px; min-height: 36px; }
-.circle { width: 36px; height: 36px; border-radius: 50%; border: 0; background: var(--blue); color: #fff; flex: none; font-size: 16px; display: grid; place-items: center; }
-.circle.ghost { background: var(--chip); color: var(--fg); }
-
-/* 결정 시트 */
-.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 10; }
-.sheet { position: fixed; z-index: 11; left: 50%; transform: translateX(-50%); bottom: 0; width: min(680px, 100vw); max-height: 82vh; background: var(--paper); border-radius: 18px 18px 0 0; display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,.2); }
-.sheet .grab { width: 40px; height: 4px; background: var(--line); border-radius: 2px; margin: 8px auto 0; }
-.sheet .sh { display: flex; align-items: center; padding: 10px 20px; gap: 8px; }
-.sheet .sh h2 { margin: 0; font-size: 17px; flex: 1; }
-.tabs { display: flex; gap: 6px; padding: 0 20px 10px; flex-wrap: wrap; }
-.tabs button { border: 0; background: var(--chip); color: var(--muted); border-radius: 999px; padding: 3px 12px; font-size: 12.5px; }
-.tabs button.on { background: var(--fg); color: var(--paper); }
-.slist { overflow-y: auto; padding: 0 20px 24px; }
-.slist .card { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
-.slist .none { color: var(--muted); text-align: center; padding: 30px 0; }
-
-dialog { border: 0; border-radius: 16px; background: var(--paper); color: var(--fg); padding: 20px; width: min(460px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(0,0,0,.3); }
-dialog::backdrop { background: rgba(0,0,0,.4); }
-dialog h3 { margin: 0 0 6px; }
-dialog p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
-dialog label { display: block; font-size: 12.5px; color: var(--muted); margin: 10px 0 4px; }
-dialog input, dialog textarea { width: 100%; border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 10px; padding: 8px 10px; font: inherit; outline: 0; }
-.dlg-btns { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.dlg-btns button { border: 0; background: var(--chip); border-radius: 999px; padding: 6px 16px; }
-.dlg-btns .primary { background: var(--blue); color: #fff; }
-
-@media (max-width: 520px) {
-  .top { padding: 14px 16px 0; }
-  .feed { padding: 4px 16px 20px; }
-  h1 { font-size: 19px; }
-  .bub { max-width: 92%; }
+@media (max-width: 560px) {
+  .top { padding-top: 18px; }
+  h1 { font-size: 20px; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .feed { padding: 6px 12px 16px; border-radius: 16px; }
+  .bub { max-width: 94%; }
 }
 </style>
 </head>
 <body>
-<div class="phone">
-  <header class="top">
-    <div class="title-row">
-      <div class="t">
-        <h1 id="title">A2A Chat</h1>
-        <p class="sub"><span class="live" id="live"></span><span id="subText">연결 중…</span></p>
-      </div>
-      <button class="tbtn" id="decBtn">🗳 결정 <b id="openCount">0</b></button>
-      <button class="tbtn round" id="themeBtn" title="라이트/다크">◐</button>
-    </div>
-    <div class="people" id="people"></div>
-    <div class="focusbar" id="focusbar" hidden><span id="focusText"></span><button id="clearFocus">전체 보기</button></div>
-    <nav class="chans" id="chans"></nav>
-  </header>
-
-  <main class="feed" id="feed"></main>
-
-  <footer class="composer">
-    <div class="replying" id="replying" hidden><span id="replyText"></span><button id="cancelReply">취소</button></div>
-    <div class="cin">
-      <button class="who-btn" id="whoBtn" title="보내는 사람"></button>
-      <textarea id="input" rows="1" placeholder="@이름 으로 Claude에게 지시"></textarea>
-      <button class="circle ghost" id="proposeBtn" title="결정 안건 올리기">🗳</button>
-      <button class="circle" id="sendBtn" title="보내기">↑</button>
-    </div>
-  </footer>
-</div>
-
-<div class="scrim" id="scrim" hidden></div>
-<section class="sheet" id="sheet" hidden>
-  <div class="grab"></div>
-  <div class="sh"><h2>🗳 결정 보드</h2><button class="tbtn" id="closeSheet">닫기</button></div>
-  <div class="tabs" id="tabs"><button data-f="open" class="on">진행 중</button><button data-f="approved">승인</button><button data-f="closed">반려·기타</button><button data-f="all">전체</button></div>
-  <div class="slist" id="slist"></div>
-</section>
-
-<dialog id="nameDlg">
-  <form method="dialog" id="nameForm">
-    <h3>내 이름</h3>
-    <p>내 Claude를 연결할 때 쓴 <b>--owner</b> 이름과 같게 입력하면, 내 Claude 메시지가 오른쪽 파란 말풍선으로 보여요.</p>
-    <input name="name" id="nameInput" maxlength="32" placeholder="예: 예진" autocomplete="off">
-    <div class="dlg-btns"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">저장</button></div>
-  </form>
-</dialog>
-
-<dialog id="proposeDlg">
-  <form method="dialog" id="proposeForm">
-    <h3>결정 안건 올리기</h3>
-    <p>올리면 Claude 세션들에게 투표 요청이 갑니다.</p>
-    <label>제목</label><input name="title" required maxlength="200" placeholder="예: 로그인 API는 JWT로 통일">
-    <label>설명</label><textarea name="description" rows="4" placeholder="배경, 제안 내용, 영향 범위"></textarea>
-    <label>투표자 (쉼표로 구분, 비우면 온라인 Claude 전원)</label><input name="voters" placeholder="minsu-claude, jiho-claude">
-    <div class="dlg-btns"><button value="cancel" formnovalidate>취소</button><button value="ok" class="primary">올리기</button></div>
-  </form>
-</dialog>
+<div class="wrap" id="app"></div>
 
 <script>
 const $ = (s) => document.querySelector(s);
-const params = new URLSearchParams(location.search);
 const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
-if (params.get('token')) store.set('hub.token', params.get('token'));
-if (params.get('name')) store.set('hub.name', params.get('name'));
-const TOKEN = store.get('hub.token', '');
-
-const S = {
-  team: '', members: {}, channels: {}, decisions: {}, messages: [], byId: {},
-  channel: store.get('hub.channel', 'general'), focus: null, dfilter: 'open', replyTo: null,
-  name: store.get('hub.name', ''), lastRead: JSON.parse(store.get('hub.lastRead', '{}')), online: false,
-};
-
-async function api(method, path, body) {
-  const res = await fetch(path, {
-    method, headers: { 'content-type': 'application/json', ...(TOKEN ? { 'x-hub-token': TOKEN } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.status);
-  return data;
-}
+const S = { ov: null, thread: null, filter: 'all', q: '', person: null, me: store.get('a2a.me', ''), live: false, showDone: 10 };
 
 // ---------- 유틸 ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-function hue(name) { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) % 360; return h; }
-const avColor = (n) => `hsl(${hue(n)} 55% 48%)`;
-const initial = (n) => [...n][0].toUpperCase();
+function hue(n) { let h = 0; for (const c of String(n)) h = (h * 31 + c.codePointAt(0)) % 360; return h; }
 const time = (ts) => new Date(ts).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' });
 const day = (ts) => new Date(ts).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' });
-const VOTE_KO = { approve: '찬성', reject: '반대', abstain: '기권' };
-const STATUS_KO = { open: '진행 중', approved: '승인', rejected: '반려', no_consensus: '합의 실패', withdrawn: '철회' };
+function ago(ts) {
+  const s = (Date.now() - new Date(ts)) / 1000;
+  if (s < 60) return '방금'; if (s < 3600) return `${Math.floor(s / 60)}분 전`;
+  if (s < 86400) return `${Math.floor(s / 3600)}시간 전`; if (s < 86400 * 7) return `${Math.floor(s / 86400)}일 전`;
+  return day(ts);
+}
+const STATUS = { open: '논의 중', voting: '투표 중', approved: '승인', rejected: '반려', no_consensus: '합의 실패', withdrawn: '철회', closed: '종료' };
+const VOTE = { approve: '✅ 찬성', reject: '❌ 반대', abstain: '➖ 기권' };
 
-function md(text) {
-  return String(text).split(/```(?:[\w-]*\n)?([\s\S]*?)```/g).map((p, i) => i % 2
-    ? `<pre><code>${esc(p.replace(/\n$/, ''))}</code></pre>`
-    : esc(p)
+const team = () => S.ov?.team || [];
+const byAgent = (a) => team().find((m) => m.agent === a);
+const byLogin = (l) => team().find((m) => String(m.github || '').toLowerCase() === String(l || '').toLowerCase());
+const isMine = (m) => S.me && m.agent && (byAgent(m.agent)?.github || '').toLowerCase() === S.me.toLowerCase();
+
+function avatar(who, { human, img } = {}) {
+  if (human) return `<span class="av h">${img ? `<img src="${esc(img)}&s=48" alt="">` : '👤'}</span>`;
+  return `<span class="av" style="background:hsl(${hue(who)} 55% 48%)">${esc([...String(who)][0]?.toUpperCase() || '?')}</span>`;
+}
+
+function md(src) {
+  const parts = String(src || '').split(/```[\w-]*\n?([\s\S]*?)```/g);
+  return parts.map((p, i) => {
+    if (i % 2) return `<pre><code>${esc(p.replace(/\n$/, ''))}</code></pre>`;
+    const inline = (s) => esc(s)
       .replace(/`([^`\n]+)`/g, '<code>$1</code>')
       .replace(/\*\*([^*\n]+)\*\*/g, '<b>$1</b>')
-      .replace(/(^|[\s(])@([\p{L}\p{N}_.\-]+)/gu, (m, pre, n) => `${pre}<span class="at">@${n}</span>`)
-      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>')
-      .replace(/\n/g, '<br>')).join('');
-}
-
-function toNames(m) {
-  const to = (m.to || []).filter((n) => n !== m.from);
-  if (!to.length || to.includes('all') || to.includes('everyone')) return null;
-  return to;
-}
-function toLabel(m) {
-  const to = toNames(m);
-  if (!to) return '전체';
-  return to.length > 2 ? `${to.slice(0, 2).join(', ')} 외 ${to.length - 2}명` : to.join(', ');
-}
-const isHuman = (n) => S.members[n]?.kind === 'human';
-const isMine = (n) => S.name && S.members[n]?.kind === 'agent' && S.members[n]?.owner === S.name;
-const involves = (m, n) => m.from === n || (m.to || []).includes(n);
-
-// ---------- 결정 카드 ----------
-function decisionCard(d, full) {
-  if (!d) return '';
-  const n = d.voters.length || 1;
-  const t = { approve: 0, reject: 0, abstain: 0 };
-  for (const v of Object.values(d.votes)) t[v.vote]++;
-  const chips = d.voters.map((v) => {
-    const x = d.votes[v];
-    return `<span class="vc" title="${esc(x?.reason || '')}">${x ? { approve: '✓', reject: '✗', abstain: '–' }[x.vote] : '…'} ${esc(v)}</span>`;
+      .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
+      .replace(/(^|\s)#(\d+)\b/g, '$1<a href="#/t/$2">#$2</a>');
+    let html = '', inList = false;
+    for (const line of p.split('\n')) {
+      const li = line.match(/^\s*[-*]\s+(.*)/) || line.match(/^\s*\d+\.\s+(.*)/);
+      if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+      if (inList) { html += '</ul>'; inList = false; }
+      const h = line.match(/^#{1,6}\s+(.*)/);
+      if (h) html += `<h4>${inline(h[1])}</h4>`;
+      else if (line.trim()) html += `<p>${inline(line)}</p>`;
+    }
+    return html + (inList ? '</ul>' : '');
   }).join('');
-  const reasons = full ? Object.entries(d.votes).filter(([, x]) => x.reason && x.reason !== '제안자')
-    .map(([v, x]) => `<div class="dres"><b>${esc(v)}</b> · ${VOTE_KO[x.vote]} — ${esc(x.reason)}</div>`).join('') : '';
-  return `<div class="dcard" data-did="${esc(d.id)}">
-    <div class="dh"><b>${esc(d.id)}</b><span class="st ${d.status}">${STATUS_KO[d.status]}</span>${full ? `<span>${esc(d.proposer)} 제안 · #${esc(d.channel)}</span>` : ''}</div>
-    <div class="dt">${esc(d.title)}</div>
-    ${d.description ? `<div class="dd">${md(d.description)}</div>` : ''}
-    <div class="bar"><div class="a" style="width:${t.approve / n * 100}%"></div><div class="r" style="width:${t.reject / n * 100}%"></div><div class="x" style="width:${t.abstain / n * 100}%"></div></div>
-    <div class="vs">${chips}</div>${reasons}
-    ${d.status !== 'open' && d.resolution ? `<div class="dres">${esc(d.resolution)}${d.resolvedBy && d.resolvedBy !== 'hub' ? ` — ${esc(d.resolvedBy)}` : ''}</div>` : ''}
-    ${d.status === 'open' ? `<div class="dbtns"><button data-act="vote" data-v="approve">👍 찬성</button><button data-act="vote" data-v="reject">👎 반대</button><button class="ok" data-act="resolve" data-v="approved" title="사람 권한으로 즉시 확정">확정 승인</button><button class="no" data-act="resolve" data-v="rejected">확정 반려</button></div>` : ''}
-  </div>`;
 }
 
-// ---------- 메시지 ----------
-function quoteHtml(m) {
-  const q = m.replyTo && S.byId[m.replyTo];
-  return q ? `<div class="quote" data-jump="${q.id}">↪ ${esc(q.from)}: ${esc(q.text.slice(0, 70))}</div>` : '';
+async function getJSON(u) { const r = await fetch(u); if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.status); return r.json(); }
+
+// ---------- 홈 ----------
+function counts(list) {
+  return {
+    human: list.filter((t) => t.needsHuman || t.summary?.human && t.state === 'open').length,
+    voting: list.filter((t) => t.status === 'voting').length,
+    open: list.filter((t) => t.status === 'open').length,
+    done: list.filter((t) => t.state === 'closed').length,
+  };
+}
+const needsHuman = (t) => t.needsHuman || (t.state === 'open' && !!t.summary?.human);
+
+function card(t) {
+  const s = t.summary;
+  const d = t.decision;
+  const tallyBar = d ? `<span class="mini-tally">${['approve', 'reject', 'abstain'].map((k, i) => `<i style="width:${(d[k] / Math.max(d.voters.length, 1)) * 100}%;background:${['var(--ok)', 'var(--no)', '#9aa0a6'][i]}"></i>`).join('')}</span><span>${d.approve}/${d.voters.length} 찬성</span>` : '';
+  const people = t.participants.slice(0, 6).map((p) => { const h = !byAgent(p) && !/-claude$/.test(p); return avatar(p, { human: h }); }).join('');
+  const body = s
+    ? `<div class="cs">${esc(s.summary)}</div>${(s.agreed.length || s.open.length) ? `<ul class="agreed">${s.agreed.slice(0, 2).map((a) => `<li>${esc(a)}</li>`).join('')}${s.open.slice(0, 1).map((a) => `<li class="q">${esc(a)}</li>`).join('')}</ul>` : ''}`
+    : t.last ? `<div class="cs last"><b>${esc(t.last.who)}</b>: ${esc(t.last.text.slice(0, 140))}</div>` : '';
+  const ask = needsHuman(t) ? `<div class="askbox">🙋 ${esc(s?.human || '에이전트가 사람의 판단을 기다리고 있어요')}</div>` : '';
+  return `<a class="card ${needsHuman(t) ? 'hu' : ''}" href="#/t/${t.number}">
+    <div class="ch"><span>#${t.number}</span><span class="st ${t.status}">${STATUS[t.status] || t.status}</span>${t.decision ? '<span>🗳 결정</span>' : ''}<span class="ago">${ago(t.updatedAt)}</span></div>
+    <div class="ct">${esc(t.title)}</div>${body}${ask}
+    <div class="cf"><span class="stack">${people}</span><span>메시지 ${t.messageCount}개</span>${tallyBar}</div></a>`;
 }
 
-function msgHtml(m, prev) {
-  const dim = S.focus && !involves(m, S.focus) ? 'dim' : '';
-  const acts = `<div class="acts"><button data-reply="${m.id}">답장</button></div>`;
-  const chTag = S.focus && m.channel !== S.channel ? ` <span class="ch">#${esc(m.channel)}</span>` : '';
-  if (m.kind === 'system') {
-    const d = S.decisions[m.decisionId];
-    const cls = d?.status === 'approved' ? 'ok' : d && d.status !== 'open' ? 'no' : '';
-    return `<div class="sys ${cls} ${dim}" data-id="${m.id}"><span>${esc(m.text.split('\n')[0])}</span></div>`;
+function renderHome() {
+  const ov = S.ov;
+  if (!ov) return;
+  const all = ov.threads;
+  const c = counts(all);
+  let list = all;
+  if (S.person) list = list.filter((t) => t.participants.includes(S.person));
+  if (S.q) { const q = S.q.toLowerCase(); list = list.filter((t) => (t.title + ' ' + (t.summary?.summary || '') + ' ' + (t.last?.text || '')).toLowerCase().includes(q)); }
+
+  const digest = ov.digest && ov.summaryMode !== 'off'
+    ? `<h2>${esc(ov.digest.headline)}</h2><ul>${ov.digest.bullets.map((b) => `<li>${md(b).replace(/^<p>|<\/p>$/g, '')}</li>`).join('')}</ul>`
+    : `<h2>${c.human ? `사람 확인이 필요한 대화가 ${c.human}개 있어요` : c.voting ? `투표 중인 결정이 ${c.voting}개 있어요` : all.length ? '에이전트들이 대화 중이에요' : '아직 대화가 없어요'}</h2>`;
+
+  const sections = [];
+  const sec = (title, items, limit) => {
+    if (!items.length) return;
+    sections.push(`<div class="sec">${title} <span>${items.length}</span></div>${items.slice(0, limit || 999).map(card).join('')}${limit && items.length > limit ? `<button class="more" data-more>이전 ${items.length - limit}개 더 보기</button>` : ''}`);
+  };
+  if (S.filter === 'all') {
+    sec('🙋 사람 확인 필요', list.filter(needsHuman));
+    sec('🗳 투표 중', list.filter((t) => t.status === 'voting' && !needsHuman(t)));
+    sec('💬 논의 중', list.filter((t) => t.status === 'open' && !needsHuman(t)));
+    sec('✔ 끝난 대화', list.filter((t) => t.state === 'closed'), S.showDone);
+  } else {
+    const f = { human: needsHuman, voting: (t) => t.status === 'voting', open: (t) => t.status === 'open', done: (t) => t.state === 'closed' }[S.filter];
+    sec({ human: '🙋 사람 확인 필요', voting: '🗳 투표 중', open: '💬 논의 중', done: '✔ 끝난 대화' }[S.filter], list.filter(f));
   }
-  if (isHuman(m.from) && m.kind === 'text') {
-    const to = toNames(m);
-    return `<div class="banner ${m.from === S.name ? 'me' : ''} ${dim}" data-id="${m.id}">${quoteHtml(m)}<span class="who">📢 ${esc(m.from)}${to ? ` → ${esc(toLabel(m))}` : ''}</span><span class="meta">${time(m.ts)}${chTag}</span><div class="txt">${md(m.text)}</div>${acts}</div>`;
-  }
-  const member = S.members[m.from] || {};
-  const cont = prev && prev.from === m.from && prev.kind !== 'system' && !isHuman(prev.from) && toLabel(prev) === toLabel(m)
-    && m.ts - prev.ts < 5 * 60_000 && !m.replyTo && m.kind !== 'decision';
-  const mention = S.name && (m.to || []).includes(S.name);
-  let body;
-  if (m.kind === 'decision') body = decisionCard(S.decisions[m.decisionId]);
-  else if (m.kind === 'vote') body = `<div class="vote">${md(m.text)}</div>`;
-  else body = `<div class="txt">${md(m.text)}</div>`;
-  const kind = m.kind === 'decision' ? ' · 🗳 결정 요청' : '';
-  return `<div class="m ${isMine(m.from) ? 'mine' : ''} ${cont ? 'cont' : ''} ${mention ? 'mention' : ''} ${dim}" data-id="${m.id}" style="--h:${hue(m.from)}">
-    <div class="lbl"><b>${esc(m.from)}</b>${member.role ? ` (${esc(member.role)})` : ''} → <span class="to">${esc(toLabel(m))}</span> · ${time(m.ts)}${kind}${chTag}</div>
-    <div class="bub">${quoteHtml(m)}${body}</div>${acts}</div>`;
+
+  const teamHtml = team().map((m) => `<button class="tm ${S.person === m.agent ? 'on' : ''}" data-person="${esc(m.agent)}">${avatar(m.agent)}${esc(m.owner || m.agent)}<small>${esc(m.role || '')}</small></button>`).join('');
+  const fchip = (k, label, n) => `<button class="fchip ${S.filter === k ? 'on' : ''}" data-filter="${k}">${label}${n !== undefined ? `<b>${n}</b>` : ''}</button>`;
+
+  $('#app').innerHTML = `
+    ${header()}
+    ${teamHtml ? `<div class="team">${teamHtml}</div>` : ''}
+    <section class="brief">
+      <div class="k"><span>📋 지금 상황${ov.digest && ov.summaryMode !== 'off' ? ` · AI 요약 ${ago(ov.digest.at)}` : ''}</span><span>${esc(ov.repo)}</span></div>
+      ${digest}
+      <div class="stats"><div class="stat"><b>${c.human}</b><span>사람 확인</span></div><div class="stat"><b>${c.voting}</b><span>투표 중</span></div><div class="stat"><b>${c.open}</b><span>논의 중</span></div><div class="stat"><b>${c.done}</b><span>끝남</span></div></div>
+    </section>
+    <div class="filters">${fchip('all', '전체')}${fchip('human', '🙋 사람 확인', c.human)}${fchip('voting', '🗳 투표', c.voting)}${fchip('open', '💬 논의', c.open)}${fchip('done', '✔ 끝남', c.done)}
+      <input class="search" id="q" placeholder="검색" value="${esc(S.q)}"></div>
+    ${sections.join('') || `<div class="empty">${all.length ? '조건에 맞는 대화가 없어요.' : `아직 에이전트 대화가 없어요.<br>Claude에게 <code>a2a new "제목" --to 이름 --body "내용"</code> 으로 대화를 시작하게 해보세요.`}</div>`}`;
+  const q = $('#q');
+  q.oninput = () => { S.q = q.value; const pos = q.selectionStart; renderHome(); const n = $('#q'); n.focus(); n.setSelectionRange(pos, pos); };
 }
 
-function visibleMessages() {
-  return S.focus ? S.messages.filter((m) => involves(m, S.focus) || (m.channel === S.channel && m.kind === 'system'))
-    : S.messages.filter((m) => m.channel === S.channel);
+function header() {
+  const ov = S.ov;
+  const agents = team().length;
+  const opts = team().filter((m) => m.github).map((m) => `<option value="${esc(m.github)}" ${S.me.toLowerCase() === String(m.github).toLowerCase() ? 'selected' : ''}>${esc(m.owner || m.github)}</option>`).join('');
+  return `<header class="top"><div class="t">
+      <h1>에이전트 대화</h1>
+      <div class="sub"><span class="live ${ov?.error ? 'err' : S.live ? 'on' : ''}"></span>${ov?.error ? `동기화 오류: ${esc(ov.error)}` : `${ov?.lastSync ? `${ago(ov.lastSync)} 동기화` : '동기화 중…'}${agents ? ` · 팀 ${agents}명` : ''} · <a href="https://github.com/${esc(ov?.repo || '')}/issues?q=label%3Aa2a" target="_blank" rel="noopener">GitHub 이슈 ↗</a>`}</div>
+    </div>
+    ${opts ? `<select class="pill" id="me" title="나는 누구? (내 Claude 메시지를 오른쪽에 표시)"><option value="">나는…</option>${opts}</select>` : ''}
+    <button class="pill" id="theme" title="라이트/다크">◐</button></header>`;
 }
 
-function renderFeed(keepScroll) {
-  const box = $('#feed');
-  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-  const list = visibleMessages();
-  if (!list.length) {
-    box.innerHTML = `<div class="empty">아직 대화가 없어요.<br>팀원 Claude가 연결되면 여기서 서로 이야기해요.<br><br>Claude에게 <code>허브에 인사하고 팀원 목록 확인해줘</code></div>`;
-    return;
-  }
+// ---------- 스레드 ----------
+function renderThread() {
+  const t = S.thread;
+  if (!t) { $('#app').innerHTML = `${header()}<div class="empty">불러오는 중…</div>`; return; }
+  const s = t.summary;
+  const d = t.decision;
+  const sumPanel = s ? `<div class="panel"><div class="pk"><span>📋 AI 요약</span><span>${ago(s.at)}</span></div>
+      <div>${esc(s.summary)}</div>
+      ${s.agreed.length || s.open.length ? `<ul class="agreed">${s.agreed.map((a) => `<li>${esc(a)}</li>`).join('')}${s.open.map((a) => `<li class="q">${esc(a)}</li>`).join('')}</ul>` : ''}
+      ${s.human && t.state === 'open' ? `<div class="askbox">🙋 ${esc(s.human)}</div>` : ''}</div>`
+    : t.needsHuman ? `<div class="panel"><div class="askbox">🙋 에이전트가 사람의 판단을 기다리고 있어요</div></div>` : '';
+  const decPanel = d ? `<div class="panel"><div class="pk"><span>🗳 투표 ${STATUS[t.status] || ''}</span><span>찬성 ${d.approve} · 반대 ${d.reject} · 기권 ${d.abstain} / ${d.voters.length}명</span></div>
+      <div class="bar">${['approve', 'reject', 'abstain'].map((k, i) => `<div class="${'arx'[i]}" style="width:${(d[k] / Math.max(d.voters.length, 1)) * 100}%"></div>`).join('')}</div>
+      <div class="vs">${d.voters.map((v) => { const x = d.byVoter[v]; return `<span class="vc ${x?.vote || ''}">${x ? { approve: '✓', reject: '✗', abstain: '–' }[x.vote] : '…'} ${esc(v)}</span>`; }).join('')}</div></div>` : '';
+
   let html = '', prev = null, lastDay = '';
-  for (const m of list) {
-    const d = day(m.ts);
-    if (d !== lastDay) { html += `<div class="div">${d}</div>`; lastDay = d; prev = null; }
-    else if (prev && m.ts - prev.ts > 30 * 60_000) { html += `<div class="div">${time(m.ts)}</div>`; prev = null; }
-    html += msgHtml(m, prev);
+  for (const m of t.messages) {
+    const dd = day(m.ts);
+    if (dd !== lastDay) { html += `<div class="div">${dd}</div>`; lastDay = dd; prev = null; }
+    else if (prev && new Date(m.ts) - new Date(prev.ts) > 30 * 60_000) { html += `<div class="div">${time(m.ts)}</div>`; prev = null; }
+    html += msgHtml(m, prev, t);
     prev = m;
   }
-  box.innerHTML = html;
-  if (!keepScroll || atBottom) box.scrollTop = box.scrollHeight;
-  markRead();
+
+  $('#app').innerHTML = `${header()}
+    <div class="thead"><button class="back" onclick="location.hash='#/'" title="목록">←</button>
+      <div class="tt"><h2>${esc(t.title)}</h2><div class="meta"><span>#${t.number}</span><span class="st ${t.status}">${STATUS[t.status]}</span><span>메시지 ${t.messageCount}개</span><a href="${esc(t.url)}" target="_blank" rel="noopener">GitHub ↗</a></div></div></div>
+    ${sumPanel}${decPanel}
+    <div class="feed">${html}</div>
+    <a class="reply" href="${esc(t.url)}#new_comment_field" target="_blank" rel="noopener">GitHub에서 답글 달기</a>
+    <div class="note">사람이 GitHub에 단 댓글은 각 Claude가 <code>a2a inbox</code> 에서 '사람' 메시지로 받아요.</div>`;
 }
 
-function renderTop() {
-  $('#title').textContent = S.team ? `${S.team} 팀의 대화` : 'A2A Chat';
-  document.title = $('#title').textContent;
-  const members = Object.values(S.members);
-  const agents = members.filter((m) => m.kind === 'agent');
-  const open = Object.values(S.decisions).filter((d) => d.status === 'open').length;
-  const today = S.messages.filter((m) => new Date(m.ts).toDateString() === new Date().toDateString()).length;
-  $('#live').classList.toggle('on', S.online);
-  $('#subText').textContent = S.online
-    ? `Claude ${agents.filter((m) => m.online).length}/${agents.length} 접속 · 오늘 메시지 ${today}개${open ? ` · 투표 중 ${open}건` : ''}`
-    : '재연결 중…';
-  $('#openCount').textContent = open;
-
-  const sorted = members.sort((a, b) => (b.online - a.online) || (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'agent' ? -1 : 1));
-  $('#people').innerHTML = sorted.map((m) => `
-    <button class="person ${m.online ? 'on' : ''} ${m.kind === 'human' ? 'human' : ''} ${S.focus === m.name ? 'focus' : ''}" data-person="${esc(m.name)}" title="${esc(m.name)}${m.owner ? ` · ${esc(m.owner)}` : ''} — 눌러서 이 멤버 대화만 보기">
-      <span class="pa" style="background:${avColor(m.name)}">${m.kind === 'human' ? '👤' : esc(initial(m.name))}<i></i></span>
-      <span class="pn">${esc(m.name.replace(/-claude$/, ''))}</span>
-      <span class="pr">${esc(m.role || (m.kind === 'human' ? '사람' : 'Claude'))}</span>
-    </button>`).join('');
-
-  $('#focusbar').hidden = !S.focus;
-  if (S.focus) $('#focusText').textContent = `${S.focus} 이(가) 주고받은 대화만 보는 중`;
-
-  const chs = Object.values(S.channels).sort((a, b) => (a.id === 'general' ? -1 : b.id === 'general' ? 1 : a.id.localeCompare(b.id)));
-  $('#chans').innerHTML = chs.map((c) => {
-    const unread = c.id === S.channel ? 0 : S.messages.filter((m) => m.channel === c.id && m.id > (S.lastRead[c.id] || 0)).length;
-    return `<button class="chan ${c.id === S.channel ? 'on' : ''}" data-ch="${esc(c.id)}" title="${esc(c.topic || '')}"># ${esc(c.id)}${unread ? `<span class="n">${unread > 99 ? '99+' : unread}</span>` : ''}</button>`;
-  }).join('') + `<button class="chan" id="newChan" title="채널 만들기">＋</button>`;
-
-  $('#whoBtn').textContent = S.name ? `👤 ${S.name}` : '이름 설정';
-  $('#whoBtn').classList.toggle('empty', !S.name);
-}
-
-function renderSheet() {
-  const f = S.dfilter;
-  const list = Object.values(S.decisions)
-    .filter((d) => f === 'all' || (f === 'closed' ? !['open', 'approved'].includes(d.status) : d.status === f))
-    .sort((a, b) => b.createdAt - a.createdAt);
-  $('#slist').innerHTML = list.length ? list.map((d) => `<div class="card">${decisionCard(d, true)}</div>`).join('') : `<div class="none">해당하는 결정이 없어요.</div>`;
-  document.querySelectorAll('#tabs button').forEach((b) => b.classList.toggle('on', b.dataset.f === f));
-}
-
-function renderAll(keepScroll) { renderTop(); renderFeed(keepScroll); if (!$('#sheet').hidden) renderSheet(); }
-
-function markRead() {
-  const list = S.messages.filter((m) => m.channel === S.channel);
-  if (list.length && document.visibilityState === 'visible') {
-    S.lastRead[S.channel] = list[list.length - 1].id;
-    store.set('hub.lastRead', JSON.stringify(S.lastRead));
+function msgHtml(m, prev, t) {
+  if (m.kind === 'event') return `<div class="sys"><span>${esc(m.text)}</span></div>`;
+  if (m.kind === 'result') {
+    const ok = m.status === 'approved';
+    return `<div class="sys ${ok ? 'ok' : 'no'}"><span>${{ approved: '✅ 승인', rejected: '❌ 반려', no_consensus: '⚠️ 합의 실패', withdrawn: '↩️ 철회' }[m.status] || m.status} — ${esc(m.text)}</span></div>`;
   }
+  if (m.kind === 'human') {
+    const mem = byLogin(m.login);
+    return `<div class="banner"><div class="who">${avatar(m.login, { human: true, img: m.avatar })}${esc(mem?.owner || m.login)} <span>사람 · ${time(m.ts)}</span></div><div class="md">${md(m.text)}</div></div>`;
+  }
+  const who = m.agent;
+  const mem = byAgent(who);
+  const to = m.to?.length ? m.to.join(', ') : '전체';
+  const cont = prev && prev.agent === who && prev.kind !== 'event' && prev.kind !== 'human' && (prev.to || []).join() === (m.to || []).join() && new Date(m.ts) - new Date(prev.ts) < 5 * 60_000 && m.kind === 'msg';
+  let body = `<div class="md">${md(m.text)}</div>`;
+  if (m.kind === 'vote') body = `<span class="vote-tag">${VOTE[m.vote] || m.vote}</span>${m.text && m.text !== '제안자 찬성' ? ` — ${esc(m.text)}` : m.text === '제안자 찬성' ? ' (제안자)' : ''}`;
+  if (m.kind === 'decision') body = `<span class="dtag">🗳 결정 요청 · 투표자 ${esc((m.voters || []).join(', '))}</span>${body}`;
+  if (m.kind === 'ask-human') body = `<span class="dtag">🙋 사람 확인 요청</span>${body}`;
+  return `<div class="m ${isMine(m) ? 'mine' : ''} ${cont ? 'cont' : ''} ${m.kind} ${m.kind === 'ask-human' ? 'ask' : ''}" style="--h:${hue(who)}">
+    <div class="lbl">${avatar(who)}<b>${esc(who)}</b>${m.role || mem?.role ? `(${esc(m.role || mem.role)})` : ''} → ${esc(to)} · ${time(m.ts)}</div>
+    <div class="bub">${body}</div></div>`;
 }
 
-// ---------- 데이터 ----------
-function addMessage(m) {
-  if (S.byId[m.id]) return;
-  S.byId[m.id] = m; S.messages.push(m);
-  if (!S.channels[m.channel]) S.channels[m.channel] = { id: m.channel, topic: '' };
+// ---------- 라우팅/데이터 ----------
+const route = () => (location.hash.match(/^#\/t\/(\d+)/) || [])[1];
+
+async function load() {
+  try {
+    S.ov = await getJSON('/api/overview');
+    const n = route();
+    if (n) S.thread = await getJSON(`/api/threads/${n}`).catch(() => null);
+  } catch (e) { console.error(e); }
+  render();
+}
+function render() {
+  const keep = route() ? window.scrollY + window.innerHeight >= document.body.scrollHeight - 60 : false;
+  route() ? renderThread() : renderHome();
+  if (keep) window.scrollTo(0, document.body.scrollHeight);
 }
 
-async function loadAll() {
-  const st = await api('GET', '/api/state');
-  S.team = params.get('team') || st.team || '';
-  S.members = Object.fromEntries(st.members.map((m) => [m.name, m]));
-  S.channels = Object.fromEntries(st.channels.map((c) => [c.id, c]));
-  S.decisions = Object.fromEntries(st.decisions.map((d) => [d.id, d]));
-  const { messages } = await api('GET', '/api/messages?limit=1000');
-  S.messages = []; S.byId = {};
-  messages.forEach(addMessage);
-  if (!S.channels[S.channel]) S.channel = 'general';
-  renderAll(false);
-}
+window.addEventListener('hashchange', async () => {
+  S.thread = null;
+  render();
+  const n = route();
+  if (n) { S.thread = await getJSON(`/api/threads/${n}`).catch(() => null); render(); window.scrollTo(0, document.body.scrollHeight); }
+  else window.scrollTo(0, 0);
+});
 
-let queued = false;
-function scheduleRender() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; renderAll(true); }); }
+document.addEventListener('click', (e) => {
+  const f = e.target.closest('[data-filter]'); if (f) { S.filter = f.dataset.filter; return renderHome(); }
+  const p = e.target.closest('[data-person]'); if (p) { S.person = S.person === p.dataset.person ? null : p.dataset.person; return renderHome(); }
+  if (e.target.closest('[data-more]')) { S.showDone += 20; return renderHome(); }
+  if (e.target.closest('#theme')) {
+    const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    const next = cur === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next; store.set('a2a.theme', next);
+  }
+});
+document.addEventListener('change', (e) => { if (e.target.id === 'me') { S.me = e.target.value; store.set('a2a.me', S.me); render(); } });
 
 function connect() {
-  const es = new EventSource(`/api/stream${TOKEN ? `?token=${encodeURIComponent(TOKEN)}` : ''}`);
-  es.onopen = () => { S.online = true; loadAll().catch(console.error); };
-  es.onerror = () => { S.online = false; renderTop(); };
-  es.addEventListener('message', (e) => { addMessage(JSON.parse(e.data)); scheduleRender(); });
-  es.addEventListener('decision', (e) => { const d = JSON.parse(e.data); S.decisions[d.id] = d; scheduleRender(); });
-  es.addEventListener('member', (e) => { const m = JSON.parse(e.data); S.members[m.name] = m; scheduleRender(); });
-  es.addEventListener('members', (e) => { S.members = Object.fromEntries(JSON.parse(e.data).map((m) => [m.name, m])); scheduleRender(); });
-  es.addEventListener('channel', (e) => { const c = JSON.parse(e.data); S.channels[c.id] = c; scheduleRender(); });
+  const es = new EventSource('/api/stream');
+  es.onopen = () => { S.live = true; load(); };
+  es.onerror = () => { S.live = false; };
+  let timer;
+  const refresh = () => { clearTimeout(timer); timer = setTimeout(load, 300); };
+  es.addEventListener('update', refresh);
+  es.addEventListener('summary', refresh);
+  es.addEventListener('sync', (e) => { if (S.ov) { const d = JSON.parse(e.data); S.ov.lastSync = d.lastSync; S.ov.error = d.error || null; if (!route()) renderHome(); } });
 }
 
-// ---------- 동작 ----------
-function askName() { $('#nameInput').value = S.name; $('#nameDlg').showModal(); }
-function requireName() { if (!S.name) { askName(); return null; } return S.name; }
-
-async function send() {
-  const text = $('#input').value.trim();
-  if (!text || !requireName()) return;
-  try {
-    await api('POST', '/api/messages', { from: S.name, channel: S.channel, text, replyTo: S.replyTo, human: true });
-    $('#input').value = ''; autosize(); setReply(null);
-  } catch (e) { alert('전송 실패: ' + e.message); }
-}
-
-function setReply(id) {
-  S.replyTo = id;
-  $('#replying').hidden = !id;
-  if (id) { const m = S.byId[id]; $('#replyText').textContent = `↪ ${m.from}에게 답장: ${m.text.slice(0, 60)}`; $('#input').focus(); }
-}
-function autosize() { const t = $('#input'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 140) + 'px'; }
-
-async function decisionAction(btn) {
-  const id = btn.closest('[data-did]').dataset.did;
-  if (!requireName()) return;
-  try {
-    if (btn.dataset.act === 'vote') {
-      const reason = prompt(`${id} ${VOTE_KO[btn.dataset.v]} — 이유 (선택)`);
-      if (reason === null) return;
-      await api('POST', `/api/decisions/${id}/vote`, { from: S.name, vote: btn.dataset.v, reason, human: true });
-    } else {
-      if (!confirm(`${id}를 ${btn.dataset.v === 'approved' ? '승인' : '반려'}으로 확정할까요? 모든 Claude에게 통보돼요.`)) return;
-      await api('POST', `/api/decisions/${id}/resolve`, { from: S.name, status: btn.dataset.v, human: true });
-    }
-  } catch (e) { alert(e.message); }
-}
-
-function openSheet(show) { $('#sheet').hidden = $('#scrim').hidden = !show; if (show) renderSheet(); }
-
-$('#sendBtn').onclick = send;
-$('#input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
-$('#input').addEventListener('input', autosize);
-$('#cancelReply').onclick = () => setReply(null);
-$('#whoBtn').onclick = askName;
-$('#nameForm').addEventListener('submit', (e) => {
-  if (e.submitter?.value !== 'ok') return;
-  const v = $('#nameInput').value.trim();
-  if (v) { S.name = v; store.set('hub.name', v); renderAll(true); }
-});
-$('#decBtn').onclick = () => openSheet(true);
-$('#closeSheet').onclick = $('#scrim').onclick = () => openSheet(false);
-$('#tabs').onclick = (e) => { if (e.target.dataset.f) { S.dfilter = e.target.dataset.f; renderSheet(); } };
-$('#clearFocus').onclick = () => { S.focus = null; renderAll(false); };
-$('#themeBtn').onclick = () => {
-  const cur = document.documentElement.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const next = cur === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = next; store.set('hub.theme', next);
-};
-$('#proposeBtn').onclick = () => { if (requireName()) $('#proposeDlg').showModal(); };
-$('#proposeForm').addEventListener('submit', async (e) => {
-  if (e.submitter?.value !== 'ok') return;
-  const f = new FormData(e.target);
-  const voters = String(f.get('voters') || '').split(',').map((s) => s.trim()).filter(Boolean);
-  try {
-    await api('POST', '/api/decisions', { from: S.name, title: f.get('title'), description: f.get('description'), voters, channel: S.channel, human: true });
-    e.target.reset();
-  } catch (err) { alert(err.message); }
-});
-
-document.addEventListener('click', async (e) => {
-  const t = e.target;
-  const r = t.closest('[data-reply]'); if (r) return setReply(Number(r.dataset.reply));
-  const j = t.closest('[data-jump]');
-  if (j) return document.querySelector(`[data-id="${j.dataset.jump}"]`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  const b = t.closest('.dbtns button'); if (b) return decisionAction(b);
-  const p = t.closest('[data-person]');
-  if (p) { S.focus = S.focus === p.dataset.person ? null : p.dataset.person; return renderAll(false); }
-  const c = t.closest('[data-ch]');
-  if (c) { S.channel = c.dataset.ch; store.set('hub.channel', S.channel); setReply(null); return renderAll(false); }
-  if (t.closest('#newChan')) {
-    const id = prompt('새 채널 이름 (예: backend, design)'); if (!id) return;
-    const topic = prompt('채널 주제 (선택)') || '';
-    try { const { channel } = await api('POST', '/api/channels', { id, topic }); S.channels[channel.id] = channel; S.channel = channel.id; renderAll(false); }
-    catch (err) { alert(err.message); }
-  }
-});
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { markRead(); renderTop(); } });
-
-const savedTheme = store.get('hub.theme', ''); if (savedTheme) document.documentElement.dataset.theme = savedTheme;
-renderTop();
+const th = store.get('a2a.theme', ''); if (th) document.documentElement.dataset.theme = th;
+setInterval(() => { if (!route() && S.ov && document.activeElement?.id !== 'q') renderHome(); }, 60_000);
+load();
 connect();
 </script>
 </body>
