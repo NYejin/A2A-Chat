@@ -1,5 +1,5 @@
 // Agent Hub 서버: 팀원 각자의 Claude Code 세션(MCP 브리지)과 사람(웹 UI)이 같은 대화방을 공유한다.
-// 의존성 없음. 실행: node server/hub.js  (환경변수 PORT, HOST, TEAM_TOKEN, DATA_DIR)
+// 의존성 없음. 실행: node server/hub.js  (환경변수 PORT, HOST, TEAM_TOKEN, TEAM_NAME, DATA_DIR)
 import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -11,6 +11,7 @@ const ROOT = path.resolve(__dirname, '..');
 const PORT = Number(process.env.PORT || 4300);
 const HOST = process.env.HOST || '0.0.0.0';
 const TEAM_TOKEN = process.env.TEAM_TOKEN || '';
+const TEAM_NAME = process.env.TEAM_NAME || '';
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const ONLINE_MS = 90_000;
@@ -301,6 +302,7 @@ route('GET', '/api/state', () => ({
   channels: Object.values(db.channels),
   decisions: Object.values(db.decisions),
   lastId: db.seq,
+  team: TEAM_NAME,
 }));
 
 route('GET', '/api/messages', ({ url }) => {
