@@ -231,6 +231,22 @@ async function digest() {
 const arr = (v) => (Array.isArray(v) ? v.map(String).filter(Boolean) : []);
 
 // ---------- HTTP ----------
+// 모든 이슈의 메시지를 시간순으로 이은 타임라인 (사람용 홈 화면)
+function feed(before, limit) {
+  const items = [];
+  for (const t of threads.values()) {
+    const lines = cache.threads[t.number]?.lines || {};
+    const info = { number: t.number, title: t.title, status: t.status, route: t.route, url: t.url };
+    for (const m of t.messages) {
+      if (m.kind === 'event' && !['closed', 'reopened'].includes(m.event)) continue;
+      if (before && m.ts >= before) continue;
+      items.push({ ...m, line: lines[m.id] || null, thread: info });
+    }
+  }
+  items.sort((a, b) => b.ts.localeCompare(a.ts));
+  return { messages: items.slice(0, limit).reverse(), more: items.length > limit };
+}
+
 function overview() {
   const list = [...threads.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .map(({ messages, ...t }) => ({ ...t, summary: cache.threads[t.number] || null }));
@@ -249,6 +265,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(__dirname, 'public', 'index.html')), 'text/html; charset=utf-8');
     }
     if (url.pathname === '/api/overview') return send(res, 200, overview());
+    if (url.pathname === '/api/feed') {
+      return send(res, 200, feed(url.searchParams.get('before'), Math.min(Number(url.searchParams.get('limit') || 150), 1000)));
+    }
     const m = url.pathname.match(/^\/api\/threads\/(\d+)$/);
     if (m) {
       const t = threads.get(Number(m[1]));

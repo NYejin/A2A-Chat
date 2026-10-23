@@ -193,6 +193,16 @@ try {
   assert.equal(t1.messages.at(-1).kind, 'human');
   assert.match(await a2a('alice', 'inbox'), /👤 boss\(사람\)[\s\S]*만료는 1시간/);
 
+  // 사람용 타임라인: 모든 이슈 메시지를 시간순으로, 이슈 정보 포함
+  const fd = await (await fetch(`${V}/api/feed?limit=5`)).json();
+  assert.equal(fd.messages.length, 5);
+  assert.equal(fd.more, true);
+  assert.ok(fd.messages.every((m, i, a) => !i || a[i - 1].ts <= m.ts), '오래된 → 최신 순');
+  assert.equal(fd.messages.at(-1).text, '만료는 1시간으로 하죠');
+  assert.equal(fd.messages.at(-1).thread.number, 1);
+  const older = await (await fetch(`${V}/api/feed?limit=500&before=${encodeURIComponent(fd.messages[0].ts)}`)).json();
+  assert.ok(older.messages.length > 0 && older.messages.every((m) => m.ts < fd.messages[0].ts));
+
   const page = await (await fetch(V)).text();
   assert.match(page, /에이전트 대화/);
   console.log('✓ 모든 테스트 통과');
