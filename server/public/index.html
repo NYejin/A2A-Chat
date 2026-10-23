@@ -129,6 +129,18 @@ select.pill { padding: 5px 8px; }
 .m.mine .bub code, .m.mine .bub pre { background: rgba(0,0,0,.2); }
 .m.vote .bub { font-size: 13px; }
 .vote-tag { font-weight: 700; }
+.gist { color: inherit; display: block; }
+a.gist:hover { text-decoration: underline; }
+.mtools { display: flex; gap: 10px; margin-top: 4px; font-size: 11.5px; }
+.mtools button, .mtools a { border: 0; background: none; padding: 0; color: var(--muted); font-size: 11.5px; }
+.m.mine .mtools button, .m.mine .mtools a, .banner .mtools button, .banner .mtools a { color: rgba(255,255,255,.7); }
+.full { margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,.15); }
+.m.mine .full, .banner .full { border-color: rgba(255,255,255,.3); }
+.m.bot .bub { background: var(--chip); border-color: var(--line); font-size: 13px; }
+.cbadge { font-size: 10.5px; font-weight: 700; color: #d97757; background: rgba(217,119,87,.12); border-radius: 999px; padding: 0 6px; }
+.route { font-weight: 500; color: var(--fg); }
+.tag { font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--chip); color: var(--muted); }
+.tag.incident, .tag.blocked { color: var(--no); }
 .m.decision .bub { border-width: 2px; }
 .dtag { display: inline-block; font-size: 11px; font-weight: 700; background: rgba(0,0,0,.08); border-radius: 999px; padding: 0 8px; margin-bottom: 4px; }
 .m.mine .dtag { background: rgba(255,255,255,.25); }
@@ -148,6 +160,9 @@ select.pill { padding: 5px 8px; }
 .md pre code { background: none; padding: 0; }
 .md ul { margin: 2px 0; padding-left: 18px; }
 .md h4 { margin: 6px 0 2px; font-size: 14px; }
+.md table { border-collapse: collapse; margin: 6px 0; font-size: 12.5px; display: block; overflow-x: auto; }
+.md th, .md td { border: 1px solid rgba(0,0,0,.12); padding: 3px 8px; text-align: left; vertical-align: top; }
+.md th { background: rgba(0,0,0,.05); }
 .reply { display: block; text-align: center; margin: 16px 0 0; background: var(--fg); color: var(--paper); border-radius: 999px; padding: 10px; font-weight: 500; }
 .note { color: var(--muted); font-size: 12px; text-align: center; margin-top: 6px; }
 
@@ -169,7 +184,7 @@ const store = {
   get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} },
 };
-const S = { ov: null, thread: null, filter: 'all', q: '', person: null, me: store.get('a2a.me', ''), live: false, showDone: 10 };
+const S = { expanded: new Set(), ov: null, thread: null, filter: 'all', q: '', person: null, me: store.get('a2a.me', ''), live: false, showDone: 10 };
 
 // ---------- 유틸 ----------
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -188,7 +203,13 @@ const VOTE = { approve: '✅ 찬성', reject: '❌ 반대', abstain: '➖ 기권
 const team = () => S.ov?.team || [];
 const byAgent = (a) => team().find((m) => m.agent === a);
 const byLogin = (l) => team().find((m) => String(m.github || '').toLowerCase() === String(l || '').toLowerCase());
-const isMine = (m) => S.me && m.agent && (byAgent(m.agent)?.github || '').toLowerCase() === S.me.toLowerCase();
+const conv = () => S.ov?.mode === 'convention';
+const isMine = (m) => S.me && (conv()
+  ? m.kind === 'member' && String(m.login).toLowerCase() === S.me.toLowerCase()
+  : m.agent && (byAgent(m.agent)?.github || '').toLowerCase() === S.me.toLowerCase());
+const SHOW_TAGS = ['report', 'incident', 'blocked', 'no-op', 'hotfix', 'bug', 'task', 'delegated'];
+const routeHtml = (t) => (t.route?.from || t.route?.to?.length ? `<span class="route">${esc(t.route.from || '?')} → ${esc((t.route.to || []).join('·') || '?')}</span>` : '');
+const touches = (t, who) => t.participants.includes(who) || t.labels.includes(`by:${who}`) || t.labels.includes(`to:${who}`) || t.route?.from === who || (t.route?.to || []).includes(who);
 
 function avatar(who, { human, img } = {}) {
   if (human) return `<span class="av h">${img ? `<img src="${esc(img)}&s=48" alt="">` : '👤'}</span>`;
@@ -205,8 +226,16 @@ function md(src) {
       .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
       .replace(/(^|[\s(])(https?:\/\/[^\s<)]+)/g, '$1<a href="$2" target="_blank" rel="noopener">$2</a>')
       .replace(/(^|\s)#(\d+)\b/g, '$1<a href="#/t/$2">#$2</a>');
-    let html = '', inList = false;
-    for (const line of p.split('\n')) {
+    let html = '', inList = false, table = [];
+    const flushTable = () => {
+      if (!table.length) return;
+      const rows = table.filter((r) => !/^\|?\s*:?-{2,}/.test(r)).map((r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+      html += `<table>${rows.map((r, i) => `<tr>${r.map((c) => (i ? `<td>${inline(c)}</td>` : `<th>${inline(c)}</th>`)).join('')}</tr>`).join('')}</table>`;
+      table = [];
+    };
+    for (const line of p.replace(/<!--[\s\S]*?-->/g, '').split('\n')) {
+      if (/^\s*\|.*\|\s*$/.test(line)) { if (inList) { html += '</ul>'; inList = false; } table.push(line.trim()); continue; }
+      flushTable();
       const li = line.match(/^\s*[-*]\s+(.*)/) || line.match(/^\s*\d+\.\s+(.*)/);
       if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
       if (inList) { html += '</ul>'; inList = false; }
@@ -214,6 +243,7 @@ function md(src) {
       if (h) html += `<h4>${inline(h[1])}</h4>`;
       else if (line.trim()) html += `<p>${inline(line)}</p>`;
     }
+    flushTable();
     return html + (inList ? '</ul>' : '');
   }).join('');
 }
@@ -235,13 +265,13 @@ function card(t) {
   const s = t.summary;
   const d = t.decision;
   const tallyBar = d ? `<span class="mini-tally">${['approve', 'reject', 'abstain'].map((k, i) => `<i style="width:${(d[k] / Math.max(d.voters.length, 1)) * 100}%;background:${['var(--ok)', 'var(--no)', '#9aa0a6'][i]}"></i>`).join('')}</span><span>${d.approve}/${d.voters.length} 찬성</span>` : '';
-  const people = t.participants.slice(0, 6).map((p) => { const h = !byAgent(p) && !/-claude$/.test(p); return avatar(p, { human: h }); }).join('');
+  const people = t.participants.slice(0, 6).map((p) => { const h = !conv() && !byAgent(p) && !/-claude$/.test(p); return avatar(p, { human: h }); }).join('');
   const body = s
     ? `<div class="cs">${esc(s.summary)}</div>${(s.agreed.length || s.open.length) ? `<ul class="agreed">${s.agreed.slice(0, 2).map((a) => `<li>${esc(a)}</li>`).join('')}${s.open.slice(0, 1).map((a) => `<li class="q">${esc(a)}</li>`).join('')}</ul>` : ''}`
     : t.last ? `<div class="cs last"><b>${esc(t.last.who)}</b>: ${esc(t.last.text.slice(0, 140))}</div>` : '';
   const ask = needsHuman(t) ? `<div class="askbox">🙋 ${esc(s?.human || '에이전트가 사람의 판단을 기다리고 있어요')}</div>` : '';
   return `<a class="card ${needsHuman(t) ? 'hu' : ''}" href="#/t/${t.number}">
-    <div class="ch"><span>#${t.number}</span><span class="st ${t.status}">${STATUS[t.status] || t.status}</span>${t.decision ? '<span>🗳 결정</span>' : ''}<span class="ago">${ago(t.updatedAt)}</span></div>
+    <div class="ch"><span>#${t.number}</span><span class="st ${t.status}">${STATUS[t.status] || t.status}</span>${t.decision ? '<span>🗳 결정</span>' : ''}${routeHtml(t)}${t.labels.filter((l) => SHOW_TAGS.includes(l)).map((l) => `<span class="tag ${l}">${esc(l)}</span>`).join('')}<span class="ago">${ago(t.updatedAt)}</span></div>
     <div class="ct">${esc(t.title)}</div>${body}${ask}
     <div class="cf"><span class="stack">${people}</span><span>메시지 ${t.messageCount}개</span>${tallyBar}</div></a>`;
 }
@@ -252,7 +282,7 @@ function renderHome() {
   const all = ov.threads;
   const c = counts(all);
   let list = all;
-  if (S.person) list = list.filter((t) => t.participants.includes(S.person));
+  if (S.person) list = list.filter((t) => touches(t, S.person));
   if (S.q) { const q = S.q.toLowerCase(); list = list.filter((t) => (t.title + ' ' + (t.summary?.summary || '') + ' ' + (t.last?.text || '')).toLowerCase().includes(q)); }
 
   const digest = ov.digest && ov.summaryMode !== 'off'
@@ -274,7 +304,7 @@ function renderHome() {
     sec({ human: '🙋 사람 확인 필요', voting: '🗳 투표 중', open: '💬 논의 중', done: '✔ 끝난 대화' }[S.filter], list.filter(f));
   }
 
-  const teamHtml = team().map((m) => `<button class="tm ${S.person === m.agent ? 'on' : ''}" data-person="${esc(m.agent)}">${avatar(m.agent)}${esc(m.owner || m.agent)}<small>${esc(m.role || '')}</small></button>`).join('');
+  const teamHtml = team().map((m) => `<button class="tm ${S.person === m.agent ? 'on' : ''}" data-person="${esc(m.agent)}">${avatar(m.agent)}${esc(conv() ? m.agent : m.owner || m.agent)}<small>${esc(m.role || '')}</small></button>`).join('');
   const fchip = (k, label, n) => `<button class="fchip ${S.filter === k ? 'on' : ''}" data-filter="${k}">${label}${n !== undefined ? `<b>${n}</b>` : ''}</button>`;
 
   $('#app').innerHTML = `
@@ -295,10 +325,13 @@ function renderHome() {
 function header() {
   const ov = S.ov;
   const agents = team().length;
-  const opts = team().filter((m) => m.github).map((m) => `<option value="${esc(m.github)}" ${S.me.toLowerCase() === String(m.github).toLowerCase() ? 'selected' : ''}>${esc(m.owner || m.github)}</option>`).join('');
+  const meList = conv()
+    ? [...new Set(team().flatMap((m) => String(m.owner || '').split(/,\s*/)).filter(Boolean))].sort().map((l) => ({ v: l, label: l }))
+    : team().filter((m) => m.github).map((m) => ({ v: m.github, label: m.owner || m.github }));
+  const opts = meList.map((o) => `<option value="${esc(o.v)}" ${S.me.toLowerCase() === String(o.v).toLowerCase() ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
   return `<header class="top"><div class="t">
-      <h1>에이전트 대화</h1>
-      <div class="sub"><span class="live ${ov?.error ? 'err' : S.live ? 'on' : ''}"></span>${ov?.error ? `동기화 오류: ${esc(ov.error)}` : `${ov?.lastSync ? `${ago(ov.lastSync)} 동기화` : '동기화 중…'}${agents ? ` · 팀 ${agents}명` : ''} · <a href="https://github.com/${esc(ov?.repo || '')}/issues?q=label%3Aa2a" target="_blank" rel="noopener">GitHub 이슈 ↗</a>`}</div>
+      <h1>${conv() ? `${esc((ov?.repo || '').split('/')[1] || '')} 이슈 대화` : '에이전트 대화'}</h1>
+      <div class="sub"><span class="live ${ov?.error ? 'err' : S.live ? 'on' : ''}"></span>${ov?.error ? `동기화 오류: ${esc(ov.error)}` : `${ov?.lastSync ? `${ago(ov.lastSync)} 동기화` : '동기화 중…'}${agents ? (conv() ? ` · 부서 ${agents}개` : ` · 팀 ${agents}명`) : ''} · <a href="https://github.com/${esc(ov?.repo || '')}/issues?q=${ov?.label ? `label%3A${encodeURIComponent(ov.label)}` : ''}" target="_blank" rel="noopener">GitHub 이슈 ↗</a>`}</div>
     </div>
     ${opts ? `<select class="pill" id="me" title="나는 누구? (내 Claude 메시지를 오른쪽에 표시)"><option value="">나는…</option>${opts}</select>` : ''}
     <button class="pill" id="theme" title="라이트/다크">◐</button></header>`;
@@ -334,7 +367,30 @@ function renderThread() {
     ${sumPanel}${decPanel}
     <div class="feed">${html}</div>
     <a class="reply" href="${esc(t.url)}#new_comment_field" target="_blank" rel="noopener">GitHub에서 답글 달기</a>
-    <div class="note">사람이 GitHub에 단 댓글은 각 Claude가 <code>a2a inbox</code> 에서 '사람' 메시지로 받아요.</div>`;
+    ${conv() ? '' : `<div class="note">사람이 GitHub에 단 댓글은 각 Claude가 <code>a2a inbox</code> 에서 '사람' 메시지로 받아요.</div>`}`;
+}
+
+function plain(text) {
+  return String(text || '')
+    .replace(/```[\s\S]*?```/g, ' (코드) ')
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*\|.*\|\s*$/gm, '')
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/[*_`>]/g, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+// 말풍선 본문: AI 한두 줄 요약(없으면 앞부분) → 누르면 GitHub 댓글로, '원문 ▾'로 펼치기
+function gist(m) {
+  const p = plain(m.text);
+  const ai = S.thread?.summary?.lines?.[m.id];
+  const short = p.length <= 90 && !/```|\n\s*\n/.test(m.text);
+  const line = ai || (p.length > 110 ? `${p.slice(0, 110)}…` : p) || '(내용 없음)';
+  const open = S.expanded.has(m.id);
+  const link = m.url ? `<a class="gist" href="${esc(m.url)}" target="_blank" rel="noopener" title="GitHub에서 보기">${esc(line)}</a>` : `<span class="gist">${esc(line)}</span>`;
+  if (short && !ai) return `<div class="md">${md(m.text)}</div>`;
+  return `${link}<div class="mtools"><button data-expand="${esc(m.id)}">${open ? '원문 접기 ▴' : '원문 ▾'}</button>${m.url ? `<a href="${esc(m.url)}" target="_blank" rel="noopener">GitHub ↗</a>` : ''}</div>${open ? `<div class="full md">${md(m.text)}</div>` : ''}`;
 }
 
 function msgHtml(m, prev, t) {
@@ -343,15 +399,23 @@ function msgHtml(m, prev, t) {
     const ok = m.status === 'approved';
     return `<div class="sys ${ok ? 'ok' : 'no'}"><span>${{ approved: '✅ 승인', rejected: '❌ 반려', no_consensus: '⚠️ 합의 실패', withdrawn: '↩️ 철회' }[m.status] || m.status} — ${esc(m.text)}</span></div>`;
   }
+  if (m.kind === 'member' || m.kind === 'bot') {
+    const to = m.to?.length ? m.to.join(', ') : '';
+    const cont = prev && prev.kind === m.kind && prev.login === m.login && new Date(m.ts) - new Date(prev.ts) < 5 * 60_000;
+    const av = m.kind === 'bot' ? `<span class="av h">⚙</span>` : m.avatar ? `<span class="av"><img src="${esc(m.avatar)}&s=48" alt=""></span>` : avatar(m.agent);
+    return `<div class="m ${isMine(m) ? 'mine' : ''} ${cont ? 'cont' : ''} ${m.kind}" style="--h:${hue(m.agent)}">
+      <div class="lbl">${av}<b>${esc(m.agent)}</b>${m.role ? `(${esc(m.role)})` : ''}${m.signed ? '<span class="cbadge">🤖 Claude</span>' : ''}${to ? ` → ${esc(to)}` : ''} · ${time(m.ts)}</div>
+      <div class="bub">${gist(m)}</div></div>`;
+  }
   if (m.kind === 'human') {
     const mem = byLogin(m.login);
-    return `<div class="banner"><div class="who">${avatar(m.login, { human: true, img: m.avatar })}${esc(mem?.owner || m.login)} <span>사람 · ${time(m.ts)}</span></div><div class="md">${md(m.text)}</div></div>`;
+    return `<div class="banner"><div class="who">${avatar(m.login, { human: true, img: m.avatar })}${esc(mem?.owner || m.login)} <span>사람 · ${time(m.ts)}</span></div>${gist(m)}</div>`;
   }
   const who = m.agent;
   const mem = byAgent(who);
   const to = m.to?.length ? m.to.join(', ') : '전체';
   const cont = prev && prev.agent === who && prev.kind !== 'event' && prev.kind !== 'human' && (prev.to || []).join() === (m.to || []).join() && new Date(m.ts) - new Date(prev.ts) < 5 * 60_000 && m.kind === 'msg';
-  let body = `<div class="md">${md(m.text)}</div>`;
+  let body = gist(m);
   if (m.kind === 'vote') body = `<span class="vote-tag">${VOTE[m.vote] || m.vote}</span>${m.text && m.text !== '제안자 찬성' ? ` — ${esc(m.text)}` : m.text === '제안자 찬성' ? ' (제안자)' : ''}`;
   if (m.kind === 'decision') body = `<span class="dtag">🗳 결정 요청 · 투표자 ${esc((m.voters || []).join(', '))}</span>${body}`;
   if (m.kind === 'ask-human') body = `<span class="dtag">🙋 사람 확인 요청</span>${body}`;
@@ -372,7 +436,7 @@ async function load() {
   render();
 }
 function render() {
-  const keep = route() ? window.scrollY + window.innerHeight >= document.body.scrollHeight - 60 : false;
+  const keep = route() && window.scrollY > 0 ? window.scrollY + window.innerHeight >= document.body.scrollHeight - 60 : false;
   route() ? renderThread() : renderHome();
   if (keep) window.scrollTo(0, document.body.scrollHeight);
 }
@@ -381,11 +445,13 @@ window.addEventListener('hashchange', async () => {
   S.thread = null;
   render();
   const n = route();
-  if (n) { S.thread = await getJSON(`/api/threads/${n}`).catch(() => null); render(); window.scrollTo(0, document.body.scrollHeight); }
+  if (n) { S.thread = await getJSON(`/api/threads/${n}`).catch(() => null); render(); window.scrollTo(0, 0); }
   else window.scrollTo(0, 0);
 });
 
 document.addEventListener('click', (e) => {
+  const x = e.target.closest('[data-expand]');
+  if (x) { const id = x.dataset.expand; S.expanded.has(id) ? S.expanded.delete(id) : S.expanded.add(id); const y = window.scrollY; renderThread(); window.scrollTo(0, y); return; }
   const f = e.target.closest('[data-filter]'); if (f) { S.filter = f.dataset.filter; return renderHome(); }
   const p = e.target.closest('[data-person]'); if (p) { S.person = S.person === p.dataset.person ? null : p.dataset.person; return renderHome(); }
   if (e.target.closest('[data-more]')) { S.showDone += 20; return renderHome(); }

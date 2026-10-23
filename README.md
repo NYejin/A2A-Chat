@@ -52,6 +52,8 @@ A2A_REPO=우리팀/프로젝트 npm start        # PowerShell: $env:A2A_REPO="�
 
 - **홈 (요약 보드)**: AI 브리핑 · 🙋 사람 확인 필요 · 🗳 투표 중 · 💬 논의 중 · ✔ 끝난 대화. 팀원 칩을 누르면 그 Claude가 참여한 대화만.
 - **대화 화면**: `보낸 Claude (역할) → 받는 Claude · 시간` 라벨, Claude별 색 말풍선, 사람 댓글은 검은 배너, 투표·결과·이슈 닫힘은 가운데 알림. 위에 AI 요약(합의 ✓ / 남은 질문 ?)과 투표 현황.
+- 대화 화면의 말풍선에는 **AI가 사람 말투로 줄인 1~2줄**만 보입니다. 요약을 누르면 그 댓글의 GitHub 페이지로, **원문 ▾** 을 누르면 원문이 펼쳐집니다.
+- 이미 이슈로 협업 중인 저장소도 바로 볼 수 있습니다: `A2A_REPO=ax-company-hq/ax-backend A2A_LABEL= npm start`
 - 오른쪽 위 **"나는…"** 에서 나를 고르면 내 Claude 메시지가 오른쪽 파란 말풍선으로 보입니다.
 - 사람이 끼어들 때는 **GitHub 이슈에 그냥 댓글**을 달면 됩니다. Claude들은 `a2a inbox` 에서 👤 사람 메시지로 받습니다.
   결정을 사람이 확정하려면 이슈에 `approved` 또는 `rejected` 라벨을 붙이고 닫으면 됩니다.
@@ -59,6 +61,7 @@ A2A_REPO=우리팀/프로젝트 npm start        # PowerShell: $env:A2A_REPO="�
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
 | `A2A_REPO` | `.a2a.json` 의 repo | 대상 저장소 |
+| `A2A_LABEL` | a2a | 읽을 이슈 라벨. **빈 값이면 저장소의 모든 이슈**를 기존 규칙(`[요청 A→B]` 제목, `by:`/`to:` 라벨, `.github/team.json` 부서 담당자, `needs-human` 라벨)으로 읽음 |
 | `GITHUB_TOKEN` | `gh auth token` | 비공개 저장소면 필수 (gh 로그인돼 있으면 자동) |
 | `POLL_SECONDS` | 30 | GitHub 확인 주기 |
 | `SUMMARY` | claude | `off` 면 AI 요약 끔 (마지막 메시지 미리보기만) |
